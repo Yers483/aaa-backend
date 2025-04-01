@@ -1,7 +1,6 @@
 import logging
-import io
-import requests
 from flask import Flask, request, jsonify
+from image_client import ImageServiceClient
 from models.plate_reader import PlateReader, InvalidImage
 
 app = Flask(__name__)
@@ -11,18 +10,7 @@ plate_reader = PlateReader.load_from_file(
 
 IMAGE_SERVICE_URL = 'http://89.169.157.72:8080/images'
 AVAILABLE_IMAGE_IDS = [10022, 9965]
-
-
-def download_image(img_id):
-    """Функция для скачивания изображений."""
-    try:
-        response = requests.get(f"{IMAGE_SERVICE_URL}/{img_id}")
-        if response.status_code != 200:
-            return None, f'Ошибка при скачивании изображения {img_id}. ' \
-                         f'Статус: {response.status_code}'
-        return io.BytesIO(response.content), None
-    except requests.RequestException as e:
-        return None, f'Ошибка при скачивании изображения {img_id}: {str(e)}'
+image_service = ImageServiceClient(IMAGE_SERVICE_URL)
 
 
 def process_image(image_data):
@@ -61,7 +49,7 @@ def recognize_by_id():
             400
         )
 
-    image_data, error = download_image(img_id)
+    image_data, error = image_service.download_image(img_id)
     if error:
         return jsonify({'Ошибка': error}), 404
 
@@ -106,7 +94,7 @@ def recognize_batch():
             )
             continue
 
-        image_data, error = download_image(img_id)
+        image_data, error = image_service.download_image(img_id)
         if error:
             results.append({'id': img_id, 'error': error})
             continue
